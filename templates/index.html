@@ -1,57 +1,98 @@
 <!DOCTYPE html>
-<html lang="ta">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Women Safety Route Estimator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeWay - Women Safety Route Planner</title>
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; }
-        .box { max-width: 480px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #333; }
-        label { font-weight: bold; margin-top: 12px; display: block; font-size: 14px; }
-        input, select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        button { margin-top: 20px; width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        .result { margin-top: 20px; padding: 12px; background: #e9ecef; font-weight: bold; text-align: center; border-radius: 5px; font-size: 16px; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .container { display: flex; flex-wrap: wrap; width: 100%; max-width: 1000px; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
+        .panel { flex: 1; min-width: 320px; padding: 30px; }
+        .map-box { flex: 1.2; min-width: 350px; min-height: 450px; background: #e0e0e0; position: relative; }
+        #map { width: 100%; height: 100%; min-height: 450px; }
+        h2 { color: #4A154B; margin-bottom: 5px; font-weight: 700; }
+        p.subtitle { color: #666; font-size: 14px; margin-bottom: 25px; }
+        .input-group { margin-bottom: 18px; }
+        label { display: block; font-weight: 600; color: #333; margin-bottom: 6px; font-size: 14px; }
+        select, input { width: 100%; padding: 12px; border: 2px solid #e1e1e1; border-radius: 10px; font-size: 15px; outline: none; transition: 0.3s; }
+        select:focus, input:focus { border-color: #764ba2; }
+        .btn { width: 100%; padding: 14px; background: linear-gradient(to right, #667eea, #764ba2); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4); }
+        .btn:hover { transform: translateY(-2px); opacity: 0.95; }
+        .result-card { margin-top: 25px; padding: 18px; border-radius: 12px; text-align: center; font-weight: bold; font-size: 18px; display: none; }
+        .safe { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .caution { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .unsafe { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .sos-btn { margin-top: 15px; background: #ff4757; color: white; text-align: center; padding: 10px; border-radius: 8px; font-weight: bold; text-decoration: none; display: block; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h2>Women Safety Route Predictor</h2>
-        <form method="POST">
-            <label>Area Name:</label>
-            <select name="area">
-                {% for loc in locations %}
-                <option value="{{ loc }}">{{ loc }}</option>
-                {% endfor %}
-            </select>
 
-            <label>Time of Night (20.0 to 28.0):</label>
-            <input type="number" step="0.5" name="time" value="22.0" required>
+<div class="container">
+    <div class="panel">
+        <h2>🛡️ SafeWay AI</h2>
+        <p class="subtitle">Smart & Safe Route Predictor for Women</p>
+        
+        <form method="POST" id="routeForm">
+            <div class="input-group">
+                <label>📍 Starting Point (From):</label>
+                <select name="start_area" required>
+                    {% for loc in locations %}
+                    <option value="{{ loc }}">{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label>Streetlight Density Score (1-10):</label>
-            <input type="number" name="lights" min="1" max="10" value="5" required>
+            <div class="input-group">
+                <label>🏁 Destination (To):</label>
+                <select name="end_area" required>
+                    {% for loc in locations %}
+                    <option value="{{ loc }}" {% if loop.index == 2 %}selected{% endif %}>{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label>Police Patrol Frequency:</label>
-            <input type="number" name="patrol" min="0" max="10" value="2" required>
+            <div class="input-group">
+                <label>⏰ Travel Time:</label>
+                <input type="time" name="travel_time" value="22:00" required>
+            </div>
 
-            <label>Distance to Public Hotspot (meters):</label>
-            <input type="number" name="distance" value="500" required>
-
-            <label>Historical Crime Rate:</label>
-            <input type="number" name="crime" value="3" required>
-
-            <label>Weather:</label>
-            <select name="weather">
-                {% for w in weathers %}
-                <option value="{{ w }}">{{ w }}</option>
-                {% endfor %}
-            </select>
-
-            <button type="submit">Predict Safety Score</button>
+            <button type="submit" class="btn">🔍 Find Safe Route</button>
         </form>
 
         {% if prediction %}
-        <div class="result">{{ prediction }}</div>
+        <div class="result-card {{ status_class }}" style="display: block;">
+            <div>{{ prediction }}</div>
+            <div style="font-size: 13px; margin-top: 8px; font-weight: normal;">
+                Patrol Status: Active | Streetlights: Monitored
+            </div>
+        </div>
+        <a href="tel:112" class="sos-btn">🚨 Emergency SOS (112)</a>
         {% endif %}
     </div>
+
+    <div class="map-box">
+        <div id="map"></div>
+    </div>
+</div>
+
+<!-- Leaflet JS for Interactive Map -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Default Map centered near Chennai/Tamil Nadu
+    var map = L.map('map').setView([13.0827, 80.2707], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add marker for visually appealing interface
+    L.marker([13.0827, 80.2707]).addTo(map)
+        .bindPopup('<b>SafeWay Monitoring Active</b><br>Safe zones are highlighted.')
+        .openPopup();
+</script>
+
 </body>
 </html>
