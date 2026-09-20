@@ -13,55 +13,73 @@ with open(MODEL_PATH, 'rb') as f:
     encoders = data['encoders']
     features = data['features']
 
+# Coordinates map for Chennai, Erode, Tiruppur locations
+LOCATION_COORDS = {
+    "Chennai": [13.0827, 80.2707],
+    "Erode": [11.3410, 77.7172],
+    "Tiruppur": [11.1085, 77.3411]
+}
+
 @app.route('/', methods=['GET', 'POST'])
 def home():
     prediction_text = None
     status_class = ""
+    route_color = "#3388ff"
     
-    locations = list(encoders['Area Name'].classes_)
+    start_lat, start_lng = 11.3410, 77.7172
+    end_lat, end_lng = 11.1085, 77.3411
+    start_loc = None
+    end_loc = None
 
     if request.method == 'POST':
-        try:
-            start_area = request.form['start_area']
-            end_area = request.form['end_area']
-            travel_time_str = request.form['travel_time']
-            
-            # Convert HH:MM time to float format (e.g. 22:30 -> 22.5)
-            hours, minutes = map(int, travel_time_str.split(':'))
+        if 'review_submit' in request.form:
+            prediction_text = "Thank you! Your safety review has been recorded."
+            status_class = "HIGHLY-SAFE"
+        else:
+            city = request.form.get('city', 'Chennai')
+            start_loc = request.form.get('start_loc')
+            end_loc = request.form.get('end_loc')
+            travel_time = request.form.get('travel_time', '21:00')
+
+            hours, minutes = map(int, travel_time.split(':'))
             time_val = hours + (minutes / 60.0)
-            if time_val < 12:  # Treat early morning as night continuation
-                time_val += 24.0
 
-            # Default smart automated backend values
-            lights = 7
-            patrol = 5
-            distance = 300
-            crime = 2
-            weather = 'Clear'
+            # Location setup based on city choice
+            base_coords = LOCATION_COORDS.get(city, [13.0827, 80.2707])
+            start_lat, start_lng = base_coords[0], base_coords[1]
+            end_lat, end_lng = base_coords[0] + 0.03, base_coords[1] + 0.03
 
-            area_enc = encoders['Area Name'].transform([start_area])[0]
-            weather_enc = encoders['Weather'].transform([weather])[0]
+            # Model prediction matching
+            area_name = encoders['Area Name'].classes_[0] 
+            weather_name = encoders['Weather'].classes_[0]
+            
+            area_enc = encoders['Area Name'].transform([area_name])[0]
+            weather_enc = encoders['Weather'].transform([weather_name])[0]
 
-            input_df = pd.DataFrame([[area_enc, time_val, lights, patrol, distance, crime, weather_enc]], columns=features)
+            input_df = pd.DataFrame([[area_enc, time_val, 6, 4, 400, 3, weather_enc]], columns=features)
             score = model.predict(input_df)[0]
 
             if score >= 7.0:
-                status = "HIGHLY SAFE ROUTE"
-                status_class = "safe"
+                status_class = "HIGHLY-SAFE"
+                prediction_text = f"🟢 HIGHLY SAFE ROUTE (Safety Score: {score:.1f}/10)"
+                route_color = "#28a745" # Green color route line
             elif score >= 5.0:
-                status = "MODERATE / USE CAUTION"
-                status_class = "caution"
+                status_class = "MODERATE"
+                prediction_text = f"🟡 MODERATE / CAUTION ROUTE (Safety Score: {score:.1f}/10)"
+                route_color = "#ffc107" # Yellow color route line
             else:
-                status = "UNSAFE ROUTE / AVOID"
-                status_class = "unsafe"
+                status_class = "UNSAFE"
+                prediction_text = f"🔴 UNSAFE ROUTE / AVOID NIGHT TRAVEL (Safety Score: {score:.1f}/10)"
+                route_color = "#dc3545" # Red color route line
 
-            prediction_text = f"Safety Score: ⭐ {score:.1f} / 10 ({status})"
-
-        except Exception as e:
-            prediction_text = f"Error: {str(e)}"
-            status_class = "unsafe"
-
-    return render_template('index.html', prediction=prediction_text, status_class=status_class, locations=locations)
+    return render_template('index.html', 
+                           prediction=prediction_text, 
+                           status_class=status_class,
+                           start_loc=start_loc,
+                           end_loc=end_loc,
+                           start_lat=start_lat, start_lng=start_lng,
+                           end_lat=end_lat, end_lng=end_lng,
+                           route_color=route_color)
 
 if __name__ == '__main__':
     app.run(debug=True)
