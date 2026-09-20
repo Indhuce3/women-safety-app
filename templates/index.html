@@ -3,96 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeWay - Women Safety Route Planner</title>
-    <!-- Leaflet CSS for Map -->
+    <title>SafeWay - Live Navigation & Safety Score</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
-        .container { display: flex; flex-wrap: wrap; width: 100%; max-width: 1000px; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
-        .panel { flex: 1; min-width: 320px; padding: 30px; }
-        .map-box { flex: 1.2; min-width: 350px; min-height: 450px; background: #e0e0e0; position: relative; }
-        #map { width: 100%; height: 100%; min-height: 450px; }
-        h2 { color: #4A154B; margin-bottom: 5px; font-weight: 700; }
-        p.subtitle { color: #666; font-size: 14px; margin-bottom: 25px; }
-        .input-group { margin-bottom: 18px; }
-        label { display: block; font-weight: 600; color: #333; margin-bottom: 6px; font-size: 14px; }
-        select, input { width: 100%; padding: 12px; border: 2px solid #e1e1e1; border-radius: 10px; font-size: 15px; outline: none; transition: 0.3s; }
-        select:focus, input:focus { border-color: #764ba2; }
-        .btn { width: 100%; padding: 14px; background: linear-gradient(to right, #667eea, #764ba2); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4); }
-        .btn:hover { transform: translateY(-2px); opacity: 0.95; }
-        .result-card { margin-top: 25px; padding: 18px; border-radius: 12px; text-align: center; font-weight: bold; font-size: 18px; display: none; }
-        .safe { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .caution { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        .unsafe { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .sos-btn { margin-top: 15px; background: #ff4757; color: white; text-align: center; padding: 10px; border-radius: 8px; font-weight: bold; text-decoration: none; display: block; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background: #f0f2f5; margin: 0; padding: 15px; }
+        .main-wrapper { display: flex; flex-wrap: wrap; gap: 15px; max-width: 1300px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .form-panel { flex: 1; min-width: 320px; }
+        .map-panel { flex: 2; min-width: 350px; height: 550px; padding: 0; overflow: hidden; position: relative; }
+        #map { width: 100%; height: 100%; }
+        
+        h2 { color: #6c5ce7; margin-top: 0; }
+        label { font-weight: bold; font-size: 13px; display: block; margin-top: 10px; color: #333; }
+        input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; }
+        
+        .btn { width: 100%; background: #6c5ce7; color: white; padding: 12px; border: none; border-radius: 6px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+        .btn:hover { background: #5b4bc4; }
+        
+        .status-box { margin-top: 15px; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; text-align: center; }
+        .HIGHLY-SAFE { background-color: #d4edda; color: #155724; border: 2px solid #28a745; }
+        .MODERATE { background-color: #fff3cd; color: #856404; border: 2px solid #ffc107; }
+        .UNSAFE { background-color: #f8d7da; color: #721c24; border: 2px solid #dc3545; }
+        
+        .sos-btn { display: block; text-align: center; background: #ff4757; color: white; text-decoration: none; padding: 10px; border-radius: 6px; font-weight: bold; margin-top: 10px; }
+        .review-section { margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="panel">
-        <h2>🛡️ SafeWay AI</h2>
-        <p class="subtitle">Smart & Safe Route Predictor for Women</p>
-        
-        <form method="POST" id="routeForm">
-            <div class="input-group">
-                <label>📍 Starting Point (From):</label>
-                <select name="start_area" required>
-                    {% for loc in locations %}
-                    <option value="{{ loc }}">{{ loc }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+<div class="main-wrapper">
+    <div class="card form-panel">
+        <h2>🛡️ SafeWay Navigation</h2>
+        <form method="POST">
+            <label>City / District:</label>
+            <select name="city" id="citySelect" onchange="updateAreas()">
+                <option value="Chennai">Chennai</option>
+                <option value="Erode">Erode</option>
+                <option value="Tiruppur">Tiruppur</option>
+            </select>
 
-            <div class="input-group">
-                <label>🏁 Destination (To):</label>
-                <select name="end_area" required>
-                    {% for loc in locations %}
-                    <option value="{{ loc }}" {% if loop.index == 2 %}selected{% endif %}>{{ loc }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+            <label>Starting Location (From):</label>
+            <input type="text" name="start_loc" id="start_loc" placeholder="Type starting point..." required>
 
-            <div class="input-group">
-                <label>⏰ Travel Time:</label>
-                <input type="time" name="travel_time" value="22:00" required>
-            </div>
+            <label>Destination Location (To):</label>
+            <input type="text" name="end_loc" id="end_loc" placeholder="Type destination..." required>
 
-            <button type="submit" class="btn">🔍 Find Safe Route</button>
+            <label>Travel Time:</label>
+            <input type="time" name="travel_time" value="21:00" required>
+
+            <button type="submit" class="btn">🚀 Check Safety & View Route</button>
         </form>
 
         {% if prediction %}
-        <div class="result-card {{ status_class }}" style="display: block;">
-            <div>{{ prediction }}</div>
-            <div style="font-size: 13px; margin-top: 8px; font-weight: normal;">
-                Patrol Status: Active | Streetlights: Monitored
-            </div>
+        <div class="status-box {{ status_class }}">
+            {{ prediction }}
         </div>
         <a href="tel:112" class="sos-btn">🚨 Emergency SOS (112)</a>
         {% endif %}
+
+        <div class="review-section">
+            <h3>💬 Community Safety Review</h3>
+            <form method="POST">
+                <input type="hidden" name="review_submit" value="1">
+                <label>Rating (1-5 Stars):</label>
+                <select name="rating">
+                    <option value="5">⭐⭐⭐⭐⭐ Highly Safe</option>
+                    <option value="4">⭐⭐⭐⭐ Safe</option>
+                    <option value="3">⭐⭐⭐ Moderate</option>
+                    <option value="2">⭐⭐ Unsafe</option>
+                    <option value="1">⭐ Highly Unsafe</option>
+                </select>
+                <label>Your Feedback / Experience:</label>
+                <textarea name="comment" rows="2" placeholder="e.g., Streetlights were dark near bus stand..." required></textarea>
+                <button type="submit" class="btn" style="background:#2ed573;">Submit Review</button>
+            </form>
+        </div>
     </div>
 
-    <div class="map-box">
+    <div class="card map-panel">
         <div id="map"></div>
     </div>
 </div>
 
-<!-- Leaflet JS for Interactive Map -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 <script>
-    // Default Map centered near Chennai/Tamil Nadu
-    var map = L.map('map').setView([13.0827, 80.2707], 12);
+    var map = L.map('map').setView([11.3410, 77.7172], 10); // Centered near Erode/Tiruppur/Chennai
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+        attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // Add marker for visually appealing interface
-    L.marker([13.0827, 80.2707]).addTo(map)
-        .bindPopup('<b>SafeWay Monitoring Active</b><br>Safe zones are highlighted.')
-        .openPopup();
+    {% if start_loc and end_loc %}
+    // Live route direction calculation like Google Maps
+    L.Routing.control({
+        waypoints: [
+            L.latLng({{ start_lat }}, {{ start_lng }}),
+            L.latLng({{ end_lat }}, {{ end_lng }})
+        ],
+        routeWhileDragging: true,
+        lineOptions: {
+            styles: [{ color: '{{ route_color }}', opacity: 0.8, weight: 6 }]
+        }
+    }).addTo(map);
+    {% endif %}
 </script>
-
 </body>
 </html>
